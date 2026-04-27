@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MedTrack — Simulateur</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+  <style>
+    :root {
+      --bg:       #0d1117;
+      --surf:     #161b22;
+      --surf2:    #21262d;
+      --border:   #30363d;
+      --accent:   #2f81f7;
+      --text:     #e6edf3;
+      --dim:      #8b949e;
+      --green:    #3fb950;
+      --orange:   #d29922;
+      --red:      #f85149;
+      --purple:   #bc8cff;
+      --yellow:   #e3b341;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 20px;
+      background: var(--surf);
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 100;
+      flex-shrink: 0;
+    }
+    .logo { display: flex; align-items: center; gap: 10px; }
+    .logo-icon { font-size: 30px; }
+    .logo-text { font-size: 19px; font-weight: 700; }
+    .logo-sub  { font-size: 12px; color: var(--dim); letter-spacing: 1.5px; text-transform: uppercase; }
+
+    #fb-status { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--dim); }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--orange); transition: background .3s; }
+    .dot.ok  { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .dot.err { background: var(--red); }
+
+    /* ── Main layout: frames côte à côte ── */
+    main {
+      flex: 1;
+      display: flex;
+      gap: 12px;
+      padding: 14px;
+      overflow-x: auto;
+      align-items: flex-start;
+    }
+
+    /* ── Frame (un niveau ou hors-site) ── */
+    .floor-frame {
+      flex: 0 0 360px;
+      background: var(--surf);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      min-height: 200px;
+    }
+    .floor-frame.hors-site {
+      border-color: var(--red);
+      flex: 0 0 320px;
+    }
+
+    .frame-header {
+      padding: 10px 14px 8px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .frame-label {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--dim);
+    }
+    .frame-label.rdc   { color: #79c0ff; }
+    .frame-label.r1    { color: #bc8cff; }
+    .frame-label.r2    { color: #ffa657; }
+    .frame-label.hors  { color: var(--red); }
+    .frame-badge {
+      font-size: 12px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 700;
+      margin-left: auto;
+    }
+    .frame-badge.rdc  { background: rgba(121,192,255,.15); color: #79c0ff; }
+    .frame-badge.r1   { background: rgba(188,140,255,.15); color: #bc8cff; }
+    .frame-badge.r2   { background: rgba(255,166,87,.15);  color: #ffa657; }
+    .frame-badge.hors { background: rgba(248,81,73,.15);   color: var(--red); }
+
+    .frame-body {
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex: 1;
+    }
+
+    /* ── Room card ── */
+    .room-card {
+      background: var(--surf2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      min-height: 56px;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .room-card.drag-over {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(47,129,247,.2);
+    }
+
+    .room-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .room-service {
+      display: inline-block;
+      font-size: 11px;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-weight: 600;
+      letter-spacing: .5px;
+      margin-bottom: 6px;
+      color: #fff;
+    }
+    .eq-chips { display: flex; flex-wrap: wrap; gap: 4px; min-height: 20px; }
+
+    /* ── Hors-site zone ── */
+    .hors-site-body {
+      padding: 10px;
+      flex: 1;
+      min-height: 100px;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .hors-site-body.drag-over {
+      box-shadow: inset 0 0 0 2px var(--red);
+      border-radius: 4px;
+    }
+    .hors-site-hint {
+      font-size: 14px;
+      color: var(--dim);
+      font-style: italic;
+      text-align: center;
+      margin-top: 20px;
+    }
+    .hors-site-chips { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 0; }
+
+    /* ── Equipment chip ── */
+    .eq-chip {
+      display: flex; align-items: center; gap: 4px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 3px 7px;
+      font-size: 12px;
+      cursor: grab;
+      user-select: none;
+      transition: all .15s;
+      position: relative;
+    }
+    .eq-chip:hover { border-color: var(--accent); background: rgba(47,129,247,.08); transform: translateY(-1px); }
+    .eq-chip.dragging { opacity: .35; cursor: grabbing; }
+    .eq-chip.out-of-place { border-color: var(--orange); background: rgba(210,153,34,.08); }
+    .eq-chip.out-of-place::after { content: '⚠'; font-size: 11px; color: var(--orange); }
+    .eq-chip.hors { border-color: var(--red); background: rgba(248,81,73,.08); }
+
+    .chip-icon { font-size: 16px; }
+    .chip-serial { color: var(--dim); font-size: 11px; }
+    .chip-status {
+      width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0;
+    }
+    .s-available   { background: var(--green); }
+    .s-in_use      { background: var(--orange); }
+    .s-maintenance { background: var(--red); }
+
+    /* ── Legend ── */
+    footer {
+      padding: 10px 20px;
+      border-top: 1px solid var(--border);
+      background: var(--surf);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-size: 14px;
+      color: var(--dim);
+      flex-shrink: 0;
+    }
+    .leg { display: flex; align-items: center; gap: 5px; }
+    .leg-dot { width: 7px; height: 7px; border-radius: 50%; }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed; bottom: 16px; right: 16px;
+      background: var(--surf2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 14px;
+      font-size: 15px;
+      opacity: 0; transform: translateY(6px);
+      transition: all .25s;
+      pointer-events: none;
+      z-index: 999;
+      max-width: 300px;
+    }
+    #toast.show { opacity: 1; transform: translateY(0); }
+    #toast.warn { border-color: var(--orange); }
+    #toast.ok   { border-color: var(--green); }
+
+
+    /* ── Context menu ── */
+    #ctx-menu {
+      position: fixed;
+      background: var(--surf2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 4px;
+      z-index: 999;
+      min-width: 180px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.5);
+      display: none;
+    }
+    .ctx-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 12px;
+      border-radius: 5px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .ctx-item:hover { background: var(--surf); }
+    .ctx-item .ctx-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .ctx-sep { height: 1px; background: var(--border); margin: 3px 4px; }
+    .ctx-label { font-size: 10px; color: var(--dim); padding: 6px 12px 2px; letter-spacing: .5px; }
+
+    /* ── Config banner ── */
+    #config-banner {
+      background: rgba(248,81,73,.1);
+      border-bottom: 1px solid var(--red);
+      padding: 8px 20px;
+      font-size: 15px;
+      color: var(--red);
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+<div id="config-banner">⚠ Firebase non configuré — éditez la section FIREBASE_CONFIG dans ce fichier.</div>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🏥</div>
+    <div>
+      <div class="logo-text">MedTrack — Simulateur</div>
+      <div class="logo-sub">Glisser-déposer entre tous les niveaux</div>
+    </div>
+  </div>
+  <div id="fb-status">
+    <div class="dot" id="fb-dot"></div>
+    <span id="fb-label">Connexion…</span>
+  </div>
+</header>
+
+<main id="main"></main>
+
+<footer>
+  <div class="leg"><div class="leg-dot" style="background:var(--green)"></div>Disponible</div>
+  <div class="leg"><div class="leg-dot" style="background:var(--orange)"></div>En utilisation</div>
+  <div class="leg"><div class="leg-dot" style="background:var(--red)"></div>Maintenance</div>
+  <div class="leg" style="margin-left:12px"><span style="color:var(--orange)">⚠</span>&nbsp;Hors zone d'affectation</div>
+  <div class="leg" style="margin-left:auto">↔ Glisser n'importe où, même entre étages</div>
+</footer>
+
+<div id="ctx-menu">
+  <div class="ctx-label">CHANGER LE STATUT</div>
+  <div class="ctx-item" data-status="available">
+    <span class="ctx-dot" style="background:var(--green)"></span> Disponible
+  </div>
+  <div class="ctx-item" data-status="in_use">
+    <span class="ctx-dot" style="background:var(--orange)"></span> En utilisation
+  </div>
+  <div class="ctx-item" data-status="maintenance">
+    <span class="ctx-dot" style="background:var(--red)"></span> En maintenance
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════
+// FIREBASE CONFIG — remplacez ces valeurs
+// ══════════════════════════════════════════════
+const FIREBASE_CONFIG = {
+    apiKey:            "AIzaSyATT7bTKzyzxGzMfwK1ixo0JQnluL5uJGU",
+    authDomain:        "medtrack-poc.firebaseapp.com",
+    databaseURL:       "https://medtrack-poc-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId:         "medtrack-poc",
+    storageBucket:     "medtrack-poc.firebasestorage.app",
+    messagingSenderId: "589601626108",
+    appId:             "1:589601626108:web:829cd044167450df798479"
+  };
+// ══════════════════════════════════════════════
+
+const SERVICE_COLORS = {
+  Urgences:    '#f85149', Accueil:   '#8b949e', Imagerie:    '#ffa657',
+  Pharmacie:   '#3fb950', Cardiologie:'#2f81f7', Bloc:        '#bc8cff',
+  Réanimation: '#ff7b72', Pédiatrie:  '#79c0ff', Maternité:   '#ffb3c2',
+};
+
+const FLOOR_META = {
+  0: { label: 'RDC — Niveau 0', cls: 'rdc', badge: 'rdc' },
+  1: { label: 'R+1 — Niveau 1', cls: 'r1',  badge: 'r1'  },
+  2: { label: 'R+2 — Niveau 2', cls: 'r2',  badge: 'r2'  },
+};
+
+const HORS_SITE_ID = '__HORS_SITE__';
+
+let state = { spaces:{}, equipment_types:{}, equipment:{}, beacons:{} };
+let draggedEqId = null;
+let toastTimer  = null;
+
+const isConfigured = !Object.values(FIREBASE_CONFIG).some(v => v.startsWith('VOTRE'));
+if (!isConfigured) document.getElementById('config-banner').style.display = 'block';
+
+firebase.initializeApp(FIREBASE_CONFIG);
+const db = firebase.database();
+
+// ── Toast ──────────────────────────────────────────────────────
+function toast(msg, type = 'ok') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `show ${type}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = ''; }, 3000);
+}
+
+// ── Get current space of equipment ────────────────────────────
+function getCurrentSpace(eqId) {
+  const eq = state.equipment[eqId];
+  if (!eq) return null;
+  const beacon = state.beacons[eq.beacon_id];
+  return beacon ? beacon.current_space : null;
+}
+
+// ── Move equipment ────────────────────────────────────────────
+async function moveEquipment(eqId, targetSpaceId) {
+  const eq = state.equipment[eqId];
+  if (!eq) return;
+  const now = new Date().toISOString();
+  try {
+    await db.ref(`beacons/${eq.beacon_id}`).update({
+      current_space: targetSpaceId,
+      last_seen: now
+    });
+    const type = state.equipment_types[eq.type]?.label ?? eqId;
+    const destName = targetSpaceId === HORS_SITE_ID
+      ? '🚨 Hors site'
+      : (state.spaces[targetSpaceId]?.name ?? targetSpaceId);
+    const isOOP = targetSpaceId !== HORS_SITE_ID && targetSpaceId !== eq.home_space;
+    toast(`${type} → ${destName}${isOOP ? ' ⚠ hors zone' : ''}`, isOOP ? 'warn' : 'ok');
+  } catch(e) {
+    toast(`Erreur: ${e.message}`, 'warn');
+  }
+}
+
+// ── Chip HTML ─────────────────────────────────────────────────
+function chipHTML(eqId, eq) {
+  const type     = state.equipment_types[eq.type] || { icon:'📦', label: eq.type };
+  const beacon   = state.beacons[eq.beacon_id];
+  const curSpace = beacon?.current_space;
+  const isOOP    = curSpace && curSpace !== eq.home_space && curSpace !== HORS_SITE_ID;
+  const isHors   = curSpace === HORS_SITE_ID;
+  const cls      = [isOOP ? 'out-of-place' : '', isHors ? 'hors' : ''].join(' ');
+  return `
+    <div class="eq-chip ${cls}" draggable="true" data-eq="${eqId}"
+         title="${type.label}\n${eq.serial}\nZone: ${state.spaces[eq.home_space]?.name ?? eq.home_space}">
+      <div class="chip-status s-${eq.status}"></div>
+      <span class="chip-icon">${type.icon}</span>
+      <span class="chip-serial">${eq.serial}</span>
+    </div>`;
+}
+
+// ── Render ────────────────────────────────────────────────────
+function render() {
+  const main = document.getElementById('main');
+  main.innerHTML = '';
+
+  // Grouper les espaces par étage
+  const byFloor = { 0:[], 1:[], 2:[] };
+  for (const [sid, sp] of Object.entries(state.spaces)) {
+    if (sp.floor != null && byFloor[sp.floor] !== undefined)
+      byFloor[sp.floor].push([sid, sp]);
+  }
+  for (const f of [0,1,2]) byFloor[f].sort(([a],[b]) => a.localeCompare(b));
+
+  // Créer une frame par étage
+  for (const floor of [0,1,2]) {
+    const meta  = FLOOR_META[floor];
+    const frame = document.createElement('div');
+    frame.className = 'floor-frame';
+
+    frame.innerHTML = `
+      <div class="frame-header">
+        <div class="frame-label ${meta.cls}">${meta.label}</div>
+        <div class="frame-badge ${meta.badge}">Étage ${floor}</div>
+      </div>
+      <div class="frame-body" id="floor-body-${floor}"></div>`;
+    main.appendChild(frame);
+
+    const body = frame.querySelector(`#floor-body-${floor}`);
+    for (const [sid, sp] of byFloor[floor]) {
+      // Équipements dans cette pièce
+      const eqHere = Object.entries(state.equipment)
+        .filter(([eid]) => getCurrentSpace(eid) === sid);
+
+      const color = SERVICE_COLORS[sp.service] || '#555';
+      const card = document.createElement('div');
+      card.className = 'room-card';
+      card.dataset.spaceId = sid;
+      card.innerHTML = `
+        <div class="room-name">${sp.name}</div>
+        <span class="room-service" style="background:${color}">${sp.service}</span>
+        <div class="eq-chips" id="chips-${sid}">
+          ${eqHere.length === 0
+            ? `<span style="font-size: 12px;color:var(--dim);font-style:italic">Vide</span>`
+            : eqHere.map(([eid, eq]) => chipHTML(eid, eq)).join('')}
+        </div>`;
+
+      // Drop sur une pièce
+      card.addEventListener('dragover', e => { e.preventDefault(); card.classList.add('drag-over'); });
+      card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
+      card.addEventListener('drop', e => {
+        e.preventDefault(); card.classList.remove('drag-over');
+        if (draggedEqId) moveEquipment(draggedEqId, sid);
+      });
+      body.appendChild(card);
+    }
+  }
+
+  // Frame Hors site
+  const horsFrame = document.createElement('div');
+  horsFrame.className = 'floor-frame hors-site';
+
+  // Équipements hors site
+  const horsEq = Object.entries(state.equipment)
+    .filter(([eid]) => getCurrentSpace(eid) === HORS_SITE_ID);
+
+  horsFrame.innerHTML = `
+    <div class="frame-header">
+      <div class="frame-label hors">🚨 Hors site</div>
+      <div class="frame-badge hors">Perdu / Volé</div>
+    </div>
+    <div class="hors-site-body" id="hors-body">
+      ${horsEq.length === 0
+        ? `<div class="hors-site-hint">Déposez ici les équipements sortis de l'hôpital</div>`
+        : `<div class="hors-site-chips">${horsEq.map(([eid,eq]) => chipHTML(eid,eq)).join('')}</div>`}
+    </div>`;
+
+  const horsBody = horsFrame.querySelector('#hors-body');
+  horsBody.addEventListener('dragover', e => { e.preventDefault(); horsBody.classList.add('drag-over'); });
+  horsBody.addEventListener('dragleave', () => horsBody.classList.remove('drag-over'));
+  horsBody.addEventListener('drop', e => {
+    e.preventDefault(); horsBody.classList.remove('drag-over');
+    if (draggedEqId) moveEquipment(draggedEqId, HORS_SITE_ID);
+  });
+  main.appendChild(horsFrame);
+
+  // Attacher les events drag sur tous les chips
+  document.querySelectorAll('.eq-chip').forEach(chip => {
+    chip.addEventListener('dragstart', e => {
+      draggedEqId = chip.dataset.eq;
+      chip.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    chip.addEventListener('dragend', () => {
+      chip.classList.remove('dragging');
+      draggedEqId = null;
+    });
+  });
+}
+
+// ── Firebase listeners ────────────────────────────────────────
+if (isConfigured) {
+  db.ref('/').on('value', snap => {
+    const data = snap.val();
+    if (!data) return;
+    state.spaces          = data.spaces          || {};
+    state.equipment_types = data.equipment_types || {};
+    state.equipment       = data.equipment       || {};
+    state.beacons         = data.beacons         || {};
+    render();
+  });
+
+  db.ref('.info/connected').on('value', snap => {
+    const dot   = document.getElementById('fb-dot');
+    const label = document.getElementById('fb-label');
+    dot.className   = snap.val() ? 'dot ok' : 'dot';
+    label.textContent = snap.val() ? 'Connecté' : 'Reconnexion…';
+  });
+}
+
+// ── Context menu ─────────────────────────────────────────────
+let ctxEqId = null;
+const ctxMenu = document.getElementById('ctx-menu');
+
+document.addEventListener('contextmenu', e => {
+  const chip = e.target.closest('.eq-chip');
+  if (!chip) { ctxMenu.style.display = 'none'; return; }
+  e.preventDefault();
+  ctxEqId = chip.dataset.eq;
+  ctxMenu.style.left = `${Math.min(e.clientX, window.innerWidth - 200)}px`;
+  ctxMenu.style.top  = `${Math.min(e.clientY, window.innerHeight - 160)}px`;
+  ctxMenu.style.display = 'block';
+});
+
+document.addEventListener('click', () => { ctxMenu.style.display = 'none'; });
+
+ctxMenu.addEventListener('click', async e => {
+  const item = e.target.closest('.ctx-item');
+  if (!item || !ctxEqId) return;
+  const status = item.dataset.status;
+  try {
+    await db.ref(`equipment/${ctxEqId}/status`).set(status);
+    const eq = state.equipment[ctxEqId];
+    const type = state.equipment_types[eq?.type]?.label ?? ctxEqId;
+    const labels = { available: 'Disponible', in_use: 'En utilisation', maintenance: 'En maintenance' };
+    toast(`${type} → ${labels[status]}`, status === 'maintenance' ? 'warn' : 'ok');
+  } catch(err) {
+    toast(`Erreur: ${err.message}`, 'warn');
+  }
+  ctxMenu.style.display = 'none';
+});
+</script>
+</body>
+</html>

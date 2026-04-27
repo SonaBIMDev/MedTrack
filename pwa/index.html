@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0d1117" />
+  <title>MedTrack — Géolocalisation d'équipements</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <div id="app">
+
+    <!-- Zone Viewer (principale) -->
+    <div id="viewer-wrap">
+      <div id="viewer-container">
+        <div id="viewer-placeholder">
+          <div class="placeholder-icon">🏥</div>
+          <p class="placeholder-hint">Cliquez sur "Charger le modèle" pour démarrer</p>
+          <button id="btn-load-model" class="btn-load-center">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            Charger le modèle
+          </button>
+        </div>
+      </div>
+
+      <!-- Spinner -->
+      <div id="loading-spinner" class="hidden">
+        <div class="spinner-ring"></div>
+        <span class="spinner-label" id="spinner-label">Initialisation…</span>
+      </div>
+
+      <!-- Barre supérieure -->
+      <header id="top-bar" class="hidden">
+        <div id="logo-wrap">
+          <span class="logo-icon">🏥</span>
+          <span class="logo-text">MedTrack</span>
+        </div>
+
+        <!-- Sélecteur de niveau -->
+        <div id="floor-tabs">
+          <button class="floor-btn active" data-floor="-1">Tous</button>
+          <button class="floor-btn" data-floor="0">RDC</button>
+          <button class="floor-btn" data-floor="1">R+1</button>
+          <button class="floor-btn" data-floor="2">R+2</button>
+        </div>
+
+        <!-- Statut Firebase -->
+        <div id="firebase-status">
+          <div class="fb-dot" id="fb-dot"></div>
+          <span id="fb-label">Connexion…</span>
+        </div>
+      </header>
+    </div>
+
+    <!-- Panneau à droite -->
+    <aside id="right-panel">
+      <div id="panel-resize-handle"></div>
+
+      <!-- En-tête fixe -->
+      <div class="panel-header">
+        <div class="panel-title">Med<span class="title-accent">Track</span></div>
+        <div class="panel-sub">SUIVI D'ÉQUIPEMENTS · <span class="sub-accent">TEMPS RÉEL</span></div>
+      </div>
+
+      <!-- Zone scrollable -->
+      <div id="right-panel-inner">
+
+        <!-- ① Recherche d'équipement -->
+        <div class="panel-section" id="section-search">
+          <div class="section-label">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Rechercher un équipement
+          </div>
+          <div id="search-box">
+            <select id="eq-type-select">
+              <option value="">— Choisir un type —</option>
+            </select>
+            <button id="btn-clear-search" class="btn-icon" title="Effacer la recherche" style="display:none">✕</button>
+          </div>
+          <div id="search-results" style="display:none">
+            <div id="search-summary"></div>
+            <div id="search-list"></div>
+          </div>
+          <div id="search-empty" class="rp-empty-hint">
+            Sélectionnez un type d'équipement pour localiser les unités disponibles
+          </div>
+        </div>
+
+        <!-- ② Pièce sélectionnée -->
+        <div class="panel-section" id="section-room">
+          <div class="section-label">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            Pièce sélectionnée
+          </div>
+          <div id="room-empty" class="rp-empty-hint">Cliquez sur une pièce dans la vue 3D</div>
+          <div id="room-detail" style="display:none">
+            <div class="room-name-big" id="room-name-big"></div>
+            <div class="room-meta" id="room-meta"></div>
+            <div class="room-eq-list" id="room-eq-list"></div>
+          </div>
+        </div>
+
+        <!-- ③ Tableau de bord -->
+        <div class="panel-section collapsible" id="section-dashboard">
+          <div class="section-header" data-target="section-dashboard">
+            <div class="section-label">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 12v5M11 8v9M15 5v12M19 9v8"/></svg>
+              Tableau de bord
+            </div>
+            <svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div class="section-body">
+            <div id="dashboard-empty" class="rp-empty-hint">Chargez le modèle pour voir le tableau de bord</div>
+            <div id="dashboard-stats" style="display:none">
+              <div class="stat-grid">
+                <div class="stat-card">
+                  <div class="stat-value" id="stat-total">—</div>
+                  <div class="stat-label">Équipements</div>
+                </div>
+                <div class="stat-card stat-ok">
+                  <div class="stat-value" id="stat-available">—</div>
+                  <div class="stat-label">Disponibles</div>
+                </div>
+                <div class="stat-card stat-warn">
+                  <div class="stat-value" id="stat-displaced">—</div>
+                  <div class="stat-label">Hors zone</div>
+                </div>
+                <div class="stat-card stat-maint">
+                  <div class="stat-value" id="stat-maintenance">—</div>
+                  <div class="stat-label">Maintenance</div>
+                </div>
+              </div>
+              <div id="alerts-list"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ④ Affichage 3D -->
+        <div class="panel-section collapsible" id="section-view">
+          <div class="section-header" data-target="section-view">
+            <div class="section-label">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+              Affichage 3D
+            </div>
+            <svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div class="section-body">
+            <div class="scene-row">
+              <label class="toggle-label">
+                <input type="checkbox" id="spaces-only" />
+                <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                <span class="toggle-text">Pièces uniquement</span>
+              </label>
+            </div>
+            <div class="scene-row">
+              <span class="toggle-text">Fond</span>
+              <label class="color-pill"><input type="color" id="bg-color" value="#0b0d14" /></label>
+            </div>
+          </div>
+        </div>
+
+        <!-- ⑤ Légende -->
+        <div class="panel-section collapsible" id="section-legend">
+          <div class="section-header" data-target="section-legend">
+            <div class="section-label">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/></svg>
+              Légende
+            </div>
+            <svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div class="section-body">
+            <div class="legend-item"><span class="legend-swatch" style="background:#3fb950"></span><span class="legend-label">Disponible</span></div>
+            <div class="legend-item"><span class="legend-swatch" style="background:#388bfd"></span><span class="legend-label">En utilisation</span></div>
+            <div class="legend-item"><span class="legend-swatch" style="background:#d29922"></span><span class="legend-label">Hors zone d'affectation</span></div>
+            <div class="legend-item"><span class="legend-swatch" style="background:#f85149"></span><span class="legend-label">En maintenance</span></div>
+            <div class="legend-item"><span class="legend-swatch" style="background:#6a7494"></span><span class="legend-label">Vide</span></div>
+          </div>
+        </div>
+
+      </div>
+    </aside>
+  </div>
+
+  <!-- Bouton flottant mobile -->
+  <button id="mobile-panel-toggle" aria-label="Ouvrir les outils">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+    </svg>
+  </button>
+  <div id="mobile-overlay"></div>
+
+  <!-- Toast notifications -->
+  <div id="toast"></div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
