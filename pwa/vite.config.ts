@@ -18,18 +18,27 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // Ne pas mettre le fichier IFC en cache (trop lourd)
-        globIgnores: ["**/*.ifc"],
+        // Augmenter la limite à 10MB pour les bundles ThatOpen/Three.js
+        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
+        // Exclure les fichiers trop lourds du precache
+        globIgnores: ["**/*.ifc", "**/*.wasm"],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com/,
             handler: "CacheFirst",
           },
+          {
+            urlPattern: /\.wasm$/,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "wasm-cache",
+              expiration: { maxEntries: 5, maxAgeSeconds: 60 * 60 * 24 * 30 },
+            },
+          },
         ],
       },
     }),
   ],
-  // Nécessaire pour les fichiers WASM de web-ifc
   optimizeDeps: {
     exclude: ["web-ifc"],
   },

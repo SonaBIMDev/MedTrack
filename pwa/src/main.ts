@@ -18,7 +18,7 @@ const SPACE_COLORS: Record<SpaceStatus, string> = {
   in_use:      "#388bfd",  // bleu   — en utilisation
   displaced:   "#d29922",  // orange — hors zone
   maintenance: "#f85149",  // rouge  — maintenance
-  empty:       "#6a7494",  // gris   — vide
+  empty:       "#e8edf2",  // blanc cassé — vide
 };
 const SEARCH_HIT_COLOR  = "#2f81f7";
 const SEARCH_MISS_COLOR = "#1a1f2a";
@@ -124,16 +124,23 @@ function computeSpaceStatuses(): void {
 
   for (const info of spaceById.values()) {
     if (info.equipmentCount === 0) { info.status = "empty"; continue; }
-    if (info.displaced > 0) { info.status = "displaced"; continue; }
-    let hasMaint = false;
+    if (info.displaced > 0)        { info.status = "displaced"; continue; }
+
+    // Analyser tous les équipements présents dans cette pièce
+    let hasMaint = false, hasInUse = false, hasAvailable = false;
     for (const [, eq] of Object.entries(equipment)) {
       const beacon = beacons[eq.beacon_id];
-      if (!beacon) continue;
-      if (beacon.current_space === info.spaceId && eq.status === "maintenance") {
-        hasMaint = true; break;
-      }
+      if (!beacon || beacon.current_space !== info.spaceId) continue;
+      if (eq.status === "maintenance") hasMaint     = true;
+      if (eq.status === "in_use")      hasInUse     = true;
+      if (eq.status === "available")   hasAvailable = true;
     }
-    info.status = hasMaint ? "maintenance" : "ok";
+
+    // Priorité : maintenance > in_use > available
+    if (hasMaint)    { info.status = "maintenance"; continue; }
+    if (hasInUse)    { info.status = "in_use";      continue; }
+    if (hasAvailable){ info.status = "ok";          continue; }
+    info.status = "ok";
   }
 }
 
@@ -745,7 +752,10 @@ async function init(): Promise<void> {
         const isFirst = !firebaseDB;
         firebaseDB = data;
         populateEquipmentTypes();
-        if (currentModel) refresh();
+        if (currentModel) {
+          refresh();
+          setTimeout(() => { if (currentModel && firebaseDB) refresh(); }, 1200);
+        }
         if (isFirst) logOk("Firebase connecté, données reçues");
       },
       (connected) => {
@@ -837,8 +847,34 @@ async function init(): Promise<void> {
       }
     });
 
+    // Pré-enregistrer tous les styles de couleur dès le départ
+    const allColors = [
+      ...Object.values(SPACE_COLORS),
+      SEARCH_HIT_COLOR, SEARCH_MISS_COLOR, SEARCH_DIM_STYLE
+    ];
+    for (const hex of allColors) {
+      if (hex === SEARCH_DIM_STYLE) continue; // c'est un nom pas une couleur
+      const styleName = `mt-${hex.replace("#", "")}`;
+      if (!hl.styles.has(styleName)) {
+        hl.styles.set(styleName, {
+          color: new THREE.Color(hex),
+          opacity: 0.6,
+          transparent: true,
+          renderedFaces: 0,
+        });
+      }
+    }
+    // Style dim pour la recherche
+    if (!hl.styles.has(SEARCH_DIM_STYLE)) {
+      hl.styles.set(SEARCH_DIM_STYLE, {
+        color: new THREE.Color("#ffffff"),
+        opacity: 0.08,
+        transparent: true,
+        renderedFaces: 0,
+      });
+    }
     highlighter = hl;
-    logOk("Highlighter actif");
+    logOk("Highlighter actif — styles pré-enregistrés");
   } catch (e) { logWarn(`Highlighter: ${e}`); }
 
   // Clic dans le vide → désélectionner (canvas direct, pas onClear)
@@ -907,17 +943,29 @@ async function init(): Promise<void> {
       // Mode par défaut : pièces uniquement
       const spacesToggle = document.getElementById("spaces-only") as HTMLInputElement;
       if (spacesToggle) spacesToggle.checked = true;
+      // 1. Afficher uniquement les espaces
       await applySpacesMode(true);
+      // 2. Update avant de colorier (évite que update() réinitialise les highlights)
+      await fragments.core.update(true);
+      // 3. Appliquer les couleurs APRÈS l'update
       await applySpaceColors(null);
+      // 4. Forcer un second update pour que les highlights soient rendus
+      await fragments.core.update(true);
 
       // Afficher la top-bar
       document.getElementById("top-bar")?.classList.remove("hidden");
 
       if (firebaseDB) updateDashboard();
 
-      await fragments.core.update(true);
       requestAnimationFrame(() => fragments.core.update(false));
       logOk(`Modèle prêt — ${spaceById.size} pièces identifiées`);
+
+      // Passes multiples : 600ms, 1.5s, 3s
+      [600, 1500, 3000].forEach(delay => {
+        setTimeout(async () => {
+          if (firebaseDB && currentModel) await refresh();
+        }, delay);
+      });
 
     } catch (e) {
       console.error(e);

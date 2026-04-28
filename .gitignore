@@ -16,5 +16,5 @@ Thumbs.db
 npm-debug.log*
 
 # IFC (fichiers lourds)
-*.ifc
-*.ifczip
+#*.ifc
+#*.ifczip

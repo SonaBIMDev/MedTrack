@@ -55,6 +55,8 @@ body {
   width: 100%;
   height: 100%;
   background: var(--bg);
+  touch-action: none;   /* empêche le scroll navigateur sur le canvas 3D */
+  -webkit-tap-highlight-color: transparent;
 }
 
 #viewer-placeholder {
@@ -536,23 +538,77 @@ body {
 
 /* ─── Mobile ────────────────────────────────────────── */
 @media (max-width: 768px) {
+  /* Panel latéral : tiroir depuis la droite */
   #right-panel {
     position: fixed;
     right: 0; top: 0; bottom: 0;
-    width: 90vw !important;
-    max-width: 360px;
+    width: 92vw !important;
+    max-width: 380px;
     z-index: 150;
     transform: translateX(100%);
     transition: transform .3s ease;
+    overflow-y: auto;
   }
   #right-panel.open { transform: translateX(0); }
   #panel-resize-handle { display: none; }
   #mobile-panel-toggle { display: flex; }
 
-  #floor-tabs .floor-btn { padding: 4px 8px; font-size: 9px; }
+  /* Top bar compacte */
+  #top-bar { padding: 0 10px; gap: 8px; }
+  #logo-wrap .logo-text { font-size: 13px; }
+  #floor-tabs .floor-btn { padding: 5px 10px; font-size: 10px; }
   #firebase-status { display: none; }
+
+  /* Le viewer prend tout l'écran */
+  #viewer-wrap { width: 100vw; height: 100vh; }
+
+  /* Bouton toggle plus visible */
+  #mobile-panel-toggle {
+    bottom: 20px; left: 20px;
+    width: 52px; height: 52px;
+    box-shadow: 0 4px 20px rgba(47,129,247,.5);
+  }
 }
 
 @media (max-width: 480px) {
+  /* Très petit écran : cacher les onglets de niveau */
   #floor-tabs { display: none; }
+
+  /* Panel plein écran */
+  #right-panel {
+    width: 100vw !important;
+    max-width: 100vw;
+  }
+
+  /* Stat grid 2 colonnes */
+  .stat-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat-value { font-size: 28px; }
+
+  /* Chips de recherche plus grands (tactile) */
+  .sr-eq-row { padding: 8px 12px; }
+  .sr-space-name { padding: 10px 12px; font-size: 13px; }
+
+  /* Eq items plus grands */
+  .eq-item { padding: 10px 0; }
+  .eq-item-icon { font-size: 22px; }
+  .eq-item-label { font-size: 13px; }
+  .eq-item-serial { font-size: 11px; }
+
+  /* Sections du panel */
+  .panel-section { padding: 14px 16px; }
+  .section-label { font-size: 11px; margin-bottom: 12px; }
+
+  /* Input select plus grand */
+  #eq-type-select { font-size: 14px; padding: 10px 12px; }
+  .btn-icon { padding: 9px 13px; font-size: 14px; }
+}
+
+/* Touch: agrandir les zones cliquables */
+@media (hover: none) and (pointer: coarse) {
+  .floor-btn { min-height: 36px; min-width: 44px; }
+  .section-header { min-height: 44px; }
+  .sr-group { margin-bottom: 10px; }
+  .toggle-track { width: 40px; height: 22px; }
+  .toggle-thumb { width: 18px; height: 18px; }
+  input[type=checkbox]:checked ~ .toggle-track .toggle-thumb { left: 18px; }
 }
