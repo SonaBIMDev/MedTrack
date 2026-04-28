@@ -556,7 +556,7 @@ body {
   /* Top bar compacte */
   #top-bar { padding: 0 10px; gap: 8px; }
   #logo-wrap .logo-text { font-size: 13px; }
-  #floor-tabs .floor-btn { padding: 5px 10px; font-size: 10px; }
+  #floor-tabs .floor-btn { padding: 4px 8px; font-size: 9px; min-width: unset; }
   #firebase-status { display: none; }
 
   /* Le viewer prend tout l'écran */
@@ -571,8 +571,8 @@ body {
 }
 
 @media (max-width: 480px) {
-  /* Très petit écran : cacher les onglets de niveau */
-  #floor-tabs { display: none; }
+  /* Très petit écran : tabs compacts mais visibles */
+  #floor-tabs { display: flex; gap: 2px; }
 
   /* Panel plein écran */
   #right-panel {

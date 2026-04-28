@@ -497,6 +497,13 @@ function selectSpace(spaceId: string | null): void {
   }
   selectedSpaceId = spaceId;
   if (spaceId) {
+    // Sur mobile : ouvrir automatiquement le panel
+    const panel   = document.getElementById("right-panel");
+    const overlay = document.getElementById("mobile-overlay");
+    if (panel && window.innerWidth <= 768) {
+      panel.classList.add("open");
+      overlay?.classList.add("visible");
+    }
     const info = spaceById.get(spaceId);
     if (info) {
       // Couleur sélection : version plus claire du statut
