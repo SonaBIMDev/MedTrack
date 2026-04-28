@@ -954,6 +954,7 @@ async function init(): Promise<void> {
 
       // Afficher la top-bar
       document.getElementById("top-bar")?.classList.remove("hidden");
+      document.getElementById("legend-overlay")?.classList.remove("hidden");
 
       if (firebaseDB) updateDashboard();
 
