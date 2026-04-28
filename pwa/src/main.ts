@@ -988,15 +988,20 @@ async function init(): Promise<void> {
   document.getElementById("btn-load-model")?.addEventListener("click", loadIfc);
 
   // ─── Floor tabs ────────────────────────────────────
-  document.getElementById("floor-tabs")?.addEventListener("click", async (e) => {
-    const btn = (e.target as HTMLElement).closest(".floor-btn") as HTMLButtonElement;
+  // Handler commun pour les deux sets de boutons (top-bar + panel)
+  async function handleFloorClick(e: Event) {
+    const btn = (e.target as HTMLElement).closest("[data-floor]") as HTMLButtonElement;
     if (!btn) return;
-    document.querySelectorAll(".floor-btn").forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
     const floor = parseInt(btn.dataset.floor ?? "-1");
+    // Synchroniser les deux sets de boutons
+    document.querySelectorAll(".floor-btn, .floor-btn-panel").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(`[data-floor="${btn.dataset.floor}"]`).forEach(b => b.classList.add("active"));
     const spacesToggle = document.getElementById("spaces-only") as HTMLInputElement;
     if (spacesToggle?.checked) await applyFloorFilter(floor);
-  });
+  }
+
+  document.getElementById("floor-tabs")?.addEventListener("click", handleFloorClick);
+  document.getElementById("floor-tabs-panel")?.addEventListener("click", handleFloorClick);
 
   // ─── Recherche équipement ──────────────────────────
   const select   = document.getElementById("eq-type-select") as HTMLSelectElement;

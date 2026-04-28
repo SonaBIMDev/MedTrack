@@ -97,6 +97,21 @@
           </div>
         </div>
 
+
+        <!-- ② Filtres par étage (mobile uniquement, desktop = top-bar) -->
+        <div class="panel-section" id="section-floors-mobile">
+          <div class="section-label">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+            Filtrer par niveau
+          </div>
+          <div id="floor-tabs-panel" style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="floor-btn-panel active" data-floor="-1">Tous</button>
+            <button class="floor-btn-panel" data-floor="0">RDC</button>
+            <button class="floor-btn-panel" data-floor="1">R+1</button>
+            <button class="floor-btn-panel" data-floor="2">R+2</button>
+          </div>
+        </div>
+
         <!-- ② Pièce sélectionnée -->
         <div class="panel-section" id="section-room">
           <div class="section-label">
